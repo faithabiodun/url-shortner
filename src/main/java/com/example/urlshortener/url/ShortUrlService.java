@@ -1,6 +1,7 @@
 package com.example.urlshortener.url;
 
-
+// @Service marks my brain: all 5 roadmap rules live here,
+// so my controller stays thin and I know where to debug
 import com.example.urlshortener.exception.InvalidUrlException;
 import com.example.urlshortener.exception.ResourceNotFoundException;
 import com.example.urlshortener.url.dto.ShortUrlResponse;
