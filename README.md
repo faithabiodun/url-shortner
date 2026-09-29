@@ -1,0 +1,1 @@
+convert your long-url to short-url

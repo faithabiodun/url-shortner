@@ -2,8 +2,7 @@ package com.example.urlshortener.exception;
 
 import java.time.Instant;
 
-// I made this record so all my errors look the same in json
-// it holds the time, status code, error name, message and path
+// shared shape for every error response, keeps frontend parsing simple
 public record ErrorResponse(
         Instant timestamp,
         int status,

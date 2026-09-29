@@ -1,0 +1,51 @@
+{
+  "info": {
+    "name": "url-shortener",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "shortCode", "value": "PASTE_CODE_HERE" }
+  ],
+  "item": [
+    {
+      "name": "1 - Create",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/shorten",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"url\": \"https://www.example.com/some/long/url\"\n}" }
+      }
+    },
+    {
+      "name": "2 - Get original (counts +1)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/shorten/{{shortCode}}" }
+    },
+    {
+      "name": "3 - Update",
+      "request": {
+        "method": "PUT",
+        "url": "{{baseUrl}}/shorten/{{shortCode}}",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"url\": \"https://www.example.com/some/updated/url\"\n}" }
+      }
+    },
+    {
+      "name": "4 - Stats (no increment)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/shorten/{{shortCode}}/stats" }
+    },
+    {
+      "name": "5 - Delete",
+      "request": { "method": "DELETE", "url": "{{baseUrl}}/shorten/{{shortCode}}" }
+    },
+    {
+      "name": "6 - Bad URL (expect 400)",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/shorten",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"url\": \"not-a-url\"\n}" }
+      }
+    }
+  ]
+}
