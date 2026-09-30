@@ -1,0 +1,37 @@
+# My one-command setup: Postgres DB + my Spring Boot API together.
+# Reason: anyone can run my project without installing Java or Postgres.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: urlshortener-db
+    environment:
+      POSTGRES_DB: urlshortener
+      POSTGRES_USER: urluser
+      POSTGRES_PASSWORD: urlpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U urluser -d urlshortener"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: urlshortener-app
+    ports:
+      - "8080:8080"
+    # Reason: my app must reach Postgres via host "db" (the service name),
+    # NOT localhost, because each container is its own machine.
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/urlshortener
+      SPRING_DATASOURCE_USERNAME: urluser
+      SPRING_DATASOURCE_PASSWORD: urlpass
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
