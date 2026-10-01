@@ -22,7 +22,11 @@
       "request": { "method": "GET", "url": "{{baseUrl}}/shorten/{{shortCode}}" }
     },
     {
-      "name": "3 - Update",
+      "name": "3 - Redirect (302, counts +1)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/{{shortCode}}" }
+    },
+    {
+      "name": "4 - Update",
       "request": {
         "method": "PUT",
         "url": "{{baseUrl}}/shorten/{{shortCode}}",
@@ -31,21 +35,25 @@
       }
     },
     {
-      "name": "4 - Stats (no increment)",
+      "name": "5 - Stats (no increment)",
       "request": { "method": "GET", "url": "{{baseUrl}}/shorten/{{shortCode}}/stats" }
     },
     {
-      "name": "5 - Delete",
+      "name": "6 - Delete",
       "request": { "method": "DELETE", "url": "{{baseUrl}}/shorten/{{shortCode}}" }
     },
     {
-      "name": "6 - Bad URL (expect 400)",
+      "name": "7 - Bad URL (expect 400)",
       "request": {
         "method": "POST",
         "url": "{{baseUrl}}/shorten",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "body": { "mode": "raw", "raw": "{\n  \"url\": \"not-a-url\"\n}" }
       }
+    },
+    {
+      "name": "8 - Missing code (expect 404)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/shorten/xxxxxx" }
     }
   ]
 }
