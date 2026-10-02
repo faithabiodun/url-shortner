@@ -1,7 +1,7 @@
 package com.example.urlshortener.url;
 
-// @Entity means this class IS my short_urls table in Postgres,
-// so I work with objects and Hibernate writes my SQL
+// @Entity maps this class to the short_urls table in Postgres,
+// so you work with objects and Hibernate writes the SQL.
 import jakarta.persistence.*;
 import java.time.Instant;
 
@@ -9,16 +9,16 @@ import java.time.Instant;
 @Table(name = "short_urls")
 public class ShortUrl {
 
-  // @Id = my primary key, IDENTITY = my DB auto-increments it so I never pick ids
+  // @Id is the primary key, IDENTITY lets the DB auto-increment it.
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  // my original long URL, TEXT because URLs can be very long
+  // Original long URL, TEXT because URLs can be very long.
   @Column(nullable = false, columnDefinition = "TEXT")
   private String url;
 
-  // my abc123 code, unique = DB rejects duplicates so my lookups never ambiguous
+  // Short abc123 code, unique so lookups are never ambiguous.
   @Column(name = "short_code", nullable = false, unique = true, length = 10)
   private String shortCode;
 
@@ -28,15 +28,15 @@ public class ShortUrl {
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
 
-  // reason: starts at 0 and only my GET increments it, so my stats stay honest
+  // Starts at 0 and only GET increments it, so stats stay honest.
   @Column(name = "access_count", nullable = false)
   private long accessCount = 0;
 
-  // reason: JPA needs an empty constructor to rebuild my rows from the DB
+  // JPA needs an empty constructor to rebuild rows from the DB.
   protected ShortUrl() {
   }
 
-  // reason: I stamp both times at creation so my createdAt/updatedAt match roadmap JSON
+  // Stamp both times at creation so createdAt/updatedAt match the API contract.
   public ShortUrl(String url, String shortCode) {
     this.url = url;
     this.shortCode = shortCode;

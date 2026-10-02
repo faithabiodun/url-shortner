@@ -1,7 +1,7 @@
 package com.example.urlshortener.url.dto;
 
-// what I return on POST/GET/PUT — matches roadmap JSON exactly,
-// separate from my entity so I control my API shape
+// Returned on POST/GET/PUT, matches the API contract.
+// Separate from the entity so the API shape stays controlled.
 import java.time.Instant;
 
 public record ShortUrlResponse(

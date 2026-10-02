@@ -1,7 +1,7 @@
 package com.example.urlshortener.url.dto;
 
-// same as ShortUrlResponse plus my counter — only used on GET .../stats,
-// so normal reads don't leak internals and stats stays explicit
+// Same as ShortUrlResponse plus the counter. Only used on GET .../stats,
+// so normal reads stay lean and stats stays explicit.
 import java.time.Instant;
 
 public record ShortUrlStatsResponse(

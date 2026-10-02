@@ -1,6 +1,6 @@
 package com.example.urlshortener.exception;
 
-// reason: fixed error shape (time+status+message+path) so my Postman errors are always readable
+// Fixed error shape (time + status + message + path) so errors stay readable in Postman.
 import java.time.Instant;
 
 public record ApiError(

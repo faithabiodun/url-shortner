@@ -1,11 +1,15 @@
 package com.example.urlshortener.url;
 
-// @RestController = my methods return JSON; @RequestMapping = my base path /shorten;
-// @Valid runs my DTO checks first so bad input never reaches my service
+// @RestController returns JSON, @RequestMapping sets base path /shorten.
+// @Valid runs DTO checks first so bad input never reaches the service.
 import com.example.urlshortener.url.dto.CreateShortUrlRequest;
 import com.example.urlshortener.url.dto.ShortUrlResponse;
 import com.example.urlshortener.url.dto.ShortUrlStatsResponse;
 import com.example.urlshortener.url.dto.UpdateShortUrlRequest;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -20,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/shorten")
+@Tag(name = "Short URLs", description = "Create and manage short codes")
 public class ShortUrlController {
 
   private final ShortUrlService service;
@@ -28,36 +33,55 @@ public class ShortUrlController {
     this.service = service;
   }
 
-  // reason: 201 CREATED signals I made a new row, per roadmap spec
+  // 201 CREATED signals a new row was made, per roadmap spec.
+  @Operation(summary = "Create short URL")
+  @ApiResponse(responseCode = "201", description = "Created")
+  @ApiResponse(responseCode = "400", description = "Bad URL")
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public ShortUrlResponse create(@Valid @RequestBody CreateShortUrlRequest body) {
     return service.create(body.url());
   }
 
-  // reason: this GET both returns my URL and counts a visit
+  // GET returns the URL and counts a visit.
+  @Operation(summary = "Get original URL as JSON (counts +1)")
+  @ApiResponse(responseCode = "200", description = "Found")
+  @ApiResponse(responseCode = "404", description = "Code not found")
   @GetMapping("/{shortCode}")
-  public ShortUrlResponse get(@PathVariable String shortCode) {
+  public ShortUrlResponse get(
+      @Parameter(description = "6-char code, e.g. aB3x9Z") @PathVariable String shortCode) {
     return service.get(shortCode);
   }
 
+  @Operation(summary = "Update destination URL")
+  @ApiResponse(responseCode = "200", description = "Updated")
+  @ApiResponse(responseCode = "400", description = "Bad URL")
+  @ApiResponse(responseCode = "404", description = "Code not found")
   @PutMapping("/{shortCode}")
   public ShortUrlResponse update(
-      @PathVariable String shortCode,
+      @Parameter(description = "6-char code, e.g. aB3x9Z") @PathVariable String shortCode,
       @Valid @RequestBody UpdateShortUrlRequest body) {
     return service.update(shortCode, body.url());
   }
 
-  // reason: 204 NO_CONTENT with empty body is the REST convention for successful delete
+  // 204 NO_CONTENT with empty body is the REST convention for successful delete.
+  @Operation(summary = "Delete short URL")
+  @ApiResponse(responseCode = "204", description = "Deleted")
+  @ApiResponse(responseCode = "404", description = "Code not found")
   @DeleteMapping("/{shortCode}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void delete(@PathVariable String shortCode) {
+  public void delete(
+      @Parameter(description = "6-char code, e.g. aB3x9Z") @PathVariable String shortCode) {
     service.delete(shortCode);
   }
 
-  // reason: separate /stats path keeps counting reads apart from viewing counts
+  // Separate /stats path keeps counting reads apart from viewing counts.
+  @Operation(summary = "Get visit stats (no increment)")
+  @ApiResponse(responseCode = "200", description = "Found")
+  @ApiResponse(responseCode = "404", description = "Code not found")
   @GetMapping("/{shortCode}/stats")
-  public ShortUrlStatsResponse stats(@PathVariable String shortCode) {
+  public ShortUrlStatsResponse stats(
+      @Parameter(description = "6-char code, e.g. aB3x9Z") @PathVariable String shortCode) {
     return service.stats(shortCode);
   }
 }
