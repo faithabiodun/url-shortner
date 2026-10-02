@@ -15,7 +15,7 @@ public class RedirectController {
     }
 
     //GET /abc123 -> 302 to original URL
-    @GetMapping("/{shortCode}")
+    @GetMapping("/{shortCode:[a-zA-Z0-9]{6}}")
     public ResponseEntity<Object> redirect(@PathVariable String shortCode) {
         ShortUrlResponse found  = service.get(shortCode);
         return ResponseEntity.status(HttpStatus.FOUND)
