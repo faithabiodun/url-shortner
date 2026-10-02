@@ -26,6 +26,20 @@ public class GlobalExceptionHandler {
         .body(new ApiError(Instant.now(), 400, ex.getMessage(), req.getRequestURI()));
   }
 
+  // Custom alias taken = 409 Conflict, client must pick another alias.
+  @ExceptionHandler(AliasTakenException.class)
+  public ResponseEntity<ApiError> aliasTaken(AliasTakenException ex, HttpServletRequest req) {
+    return ResponseEntity.status(409)
+        .body(new ApiError(Instant.now(), 409, ex.getMessage(), req.getRequestURI()));
+  }
+
+  // Expired link = 410 Gone, link existed but expiresAt has passed.
+  @ExceptionHandler(ExpiredLinkException.class)
+  public ResponseEntity<ApiError> expired(ExpiredLinkException ex, HttpServletRequest req) {
+    return ResponseEntity.status(410)
+        .body(new ApiError(Instant.now(), 410, ex.getMessage(), req.getRequestURI()));
+  }
+
   // @Valid failures (blank/too-long) are also 400, caught separately by Spring.
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ResponseEntity<ApiError> validation(MethodArgumentNotValidException ex, HttpServletRequest req) {

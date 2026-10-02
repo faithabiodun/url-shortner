@@ -19,14 +19,15 @@ public class RedirectController {
         this.service = service;
     }
 
-    // GET /abc123 -> 302 to original URL. Regex keeps only 6-char codes here
-    // so /swagger-ui.html and other paths fall through.
+    // GET /abc123 -> 302 to original URL. Regex allows random 6-char codes
+    // and custom aliases (4-20, no dots) so /swagger-ui.html still falls through.
     @Operation(summary = "Redirect to original URL (302, counts +1)")
     @ApiResponse(responseCode = "302", description = "Redirect to original URL")
     @ApiResponse(responseCode = "404", description = "Code not found")
-    @GetMapping("/{shortCode:[a-zA-Z0-9]{6}}")
+    @ApiResponse(responseCode = "410", description = "Link expired")
+    @GetMapping("/{shortCode:[a-zA-Z0-9_-]{4,20}}")
     public ResponseEntity<Void> redirect(
-            @Parameter(description = "6-char code, e.g. aB3x9Z") @PathVariable String shortCode) {
+            @Parameter(description = "code or alias, e.g. aB3x9Z or my-link1") @PathVariable String shortCode) {
         ShortUrlResponse found = service.get(shortCode);
         return ResponseEntity.status(HttpStatus.FOUND)
                 .header("Location", found.url())

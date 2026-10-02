@@ -34,13 +34,14 @@ public class ShortUrlController {
   }
 
   // 201 CREATED signals a new row was made, per roadmap spec.
-  @Operation(summary = "Create short URL")
+  @Operation(summary = "Create short URL (optional customCode + expiresAt)")
   @ApiResponse(responseCode = "201", description = "Created")
   @ApiResponse(responseCode = "400", description = "Bad URL")
+  @ApiResponse(responseCode = "409", description = "Custom alias taken")
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public ShortUrlResponse create(@Valid @RequestBody CreateShortUrlRequest body) {
-    return service.create(body.url());
+    return service.create(body.url(), body.customCode(), body.expiresAt());
   }
 
   // GET returns the URL and counts a visit.
