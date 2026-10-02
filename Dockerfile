@@ -11,4 +11,7 @@ FROM eclipse-temurin:17-jre
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Render injects DATABASE_URL as postgres://... but JDBC needs jdbc:postgresql://...
+# Convert it at container start when SPRING_DATASOURCE_URL is not set directly.
+# Docker Compose sets SPRING_DATASOURCE_URL itself, so this step is skipped locally.
+ENTRYPOINT ["sh", "-c", "if [ -n \"$DATABASE_URL\" ] && [ -z \"$SPRING_DATASOURCE_URL\" ]; then export SPRING_DATASOURCE_URL=$(echo \"$DATABASE_URL\" | sed 's#^postgres://#jdbc:postgresql://#'); fi; exec java -jar app.jar"]
