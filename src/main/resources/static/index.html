@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>URL-SHORTENER — Make long links short</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="brand">
+    <h1>URL-<span>SHORTENER</span></h1>
+    <p class="tagline">a free link shortening service</p>
+  </header>
+
+  <main class="card">
+    <h2>Paste a long link to make it short</h2>
+
+    <div class="row">
+      <input id="urlInput" type="url" placeholder="https://your-very-long-link-here.com/..." autocomplete="off" />
+      <button id="shortenBtn">Shorten URL</button>
+    </div>
+
+    <details class="advanced">
+      <summary>Custom alias &amp; expiry (optional)</summary>
+      <div class="row wrap">
+        <input id="aliasInput" type="text" placeholder="custom alias, e.g. my-link1 (4-20 chars)" maxlength="20" />
+        <select id="expiryInput">
+          <option value="">Never expires</option>
+          <option value="1">Expires in 1 day</option>
+          <option value="7">Expires in 7 days</option>
+          <option value="30">Expires in 30 days</option>
+        </select>
+      </div>
+    </details>
+
+    <p id="error" class="error" hidden></p>
+
+    <div id="result" class="result" hidden>
+      <p class="label">Your short link is ready:</p>
+      <div class="row">
+        <a id="shortLink" href="#" target="_blank" rel="noopener"></a>
+      </div>
+      <div class="row gap">
+        <button id="openBtn" class="secondary">Open</button>
+        <button id="copyBtn" class="secondary">Copy</button>
+        <span id="visits" class="visits"></span>
+      </div>
+    </div>
+
+    <p class="desc">Turn long web addresses into tiny links you can share anywhere.</p>
+    <p class="desc">Free forever. No sign-up. Links redirect instantly and track visits.</p>
+
+    <details class="advanced">
+      <summary>Deploy settings (for Vercel frontend → separate backend)</summary>
+      <div class="row wrap">
+        <input id="apiBaseInput" type="url" placeholder="API base, e.g. https://your-api.onrender.com" />
+        <button id="saveApiBtn" class="secondary">Save</button>
+      </div>
+      <p class="hint">Leave empty to use this same server. When this page runs on Vercel, paste your backend URL here.</p>
+    </details>
+  </main>
+
+  <footer>
+    <a href="/swagger-ui.html">API docs</a> ·
+    <a href="/actuator/health">Health</a> ·
+    <a href="/v3/api-docs">OpenAPI JSON</a>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font: 16px/1.6 system-ui, sans-serif;
+  background: #f4f4f4;
+  color: #333;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.brand { text-align: center; margin: 32px 0 8px; }
+.brand h1 {
+  margin: 0;
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: #1b87c9;
+  letter-spacing: -1px;
+}
+.brand h1 span { color: #0f6aa3; }
+.tagline { margin: 0; color: #777; font-size: 0.95rem; }
+
+.card {
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.12);
+  padding: 32px 40px;
+  width: min(720px, calc(100% - 32px));
+  text-align: center;
+}
+
+.card h2 { margin: 0 0 20px; color: #555; font-size: 1.7rem; }
+
+.row { display: flex; gap: 0; justify-content: center; margin: 12px 0; }
+.row.wrap { flex-wrap: wrap; gap: 8px; }
+.row.gap { gap: 8px; align-items: center; }
+
+input[type="url"], input[type="text"] {
+  flex: 1;
+  min-width: 200px;
+  padding: 12px 16px;
+  font-size: 1rem;
+  border: 1px solid #bbb;
+  border-right: none;
+  border-radius: 3px 0 0 3px;
+  outline: none;
+}
+.advanced input, .advanced select { border-right: 1px solid #bbb; border-radius: 3px; }
+.row.wrap input { border-right: 1px solid #bbb; border-radius: 3px; }
+
+select {
+  padding: 12px;
+  font-size: 0.95rem;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+  background: #fff;
+}
+
+button {
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  background: #1b87c9;
+  border: none;
+  border-radius: 0 3px 3px 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+button:hover { background: #0f6aa3; }
+button.secondary {
+  background: #eef4f8;
+  color: #0f6aa3;
+  border-radius: 3px;
+}
+button.secondary:hover { background: #dcebf5; }
+
+.advanced { margin: 8px 0; text-align: left; }
+.advanced summary { cursor: pointer; color: #1b87c9; font-size: 0.9rem; }
+
+.error {
+  color: #b3261e;
+  background: #fdecea;
+  border-radius: 3px;
+  padding: 10px;
+}
+
+.result {
+  border-top: 1px solid #eee;
+  margin-top: 16px;
+  padding-top: 8px;
+}
+.result .label { color: #0f6aa3; font-weight: 700; }
+#shortLink {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1b87c9;
+  word-break: break-all;
+}
+.visits { color: #777; font-size: 0.9rem; }
+
+.desc { margin: 6px 0; }
+.hint { font-size: 0.85rem; color: #777; }
+
+footer { margin: 24px 0; color: #999; font-size: 0.9rem; }
+footer a { color: #1b87c9; text-decoration: none; }
