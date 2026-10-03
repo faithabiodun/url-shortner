@@ -1,11 +1,13 @@
 package com.example.urlshortener;
 
-// @SpringBootApplication turns on my auto-config, web server, and JPA in one line,
-// so I don't configure each piece by hand
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 @SpringBootApplication
+@EnableCaching
+@EnableAsync
 public class UrlShortenerApplication {
   // my entry point — I press Run on this in IntelliJ
   public static void main(String[] args) {

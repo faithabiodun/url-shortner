@@ -6,8 +6,11 @@ import com.example.urlshortener.exception.AliasTakenException;
 import com.example.urlshortener.exception.ExpiredLinkException;
 import com.example.urlshortener.exception.InvalidUrlException;
 import com.example.urlshortener.exception.ResourceNotFoundException;
+import com.example.urlshortener.url.LinkResolver.CachedLink;
 import com.example.urlshortener.url.dto.ShortUrlResponse;
 import com.example.urlshortener.url.dto.ShortUrlStatsResponse;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.net.URI;
@@ -18,11 +21,22 @@ public class ShortUrlService {
 
   private final ShortUrlRepository repo;
   private final ShortCodeGenerator generator;
+  private final LinkResolver linkResolver;
+  private final VisitCounter visitCounter;
+  private final CacheManager cacheManager;
 
   // Constructor injection keeps dependencies explicit and testable.
-  public ShortUrlService(ShortUrlRepository repo, ShortCodeGenerator generator) {
+  public ShortUrlService(ShortUrlRepository repo, ShortCodeGenerator generator,
+      LinkResolver linkResolver, VisitCounter visitCounter, CacheManager cacheManager) {
     this.repo = repo;
     this.generator = generator;
+    this.linkResolver = linkResolver;
+    this.visitCounter = visitCounter;
+    this.cacheManager = cacheManager;
+  }
+
+  private Cache cache() {
+    return cacheManager.getCache("redirects");
   }
 
   // Proper URL check: parses with URI, requires http/https scheme + host.
@@ -58,10 +72,19 @@ public class ShortUrlService {
     }
   }
 
-  // Shared expiry gate: expired links behave as gone (410), not found (404).
+  // Shared expiry gate for entities loaded straight from the DB.
   private void checkExpired(ShortUrl found) {
     if (found.isExpired()) {
       throw new ExpiredLinkException("link expired: " + found.getShortCode());
+    }
+  }
+
+  // Same gate for cached snapshots, evicting the stale entry first so the
+  // next read goes to the DB instead of serving the dead link again.
+  private void checkExpired(CachedLink link, String shortCode) {
+    if (link.expiresAt() != null && Instant.now().isAfter(link.expiresAt())) {
+      cache().evict(shortCode);
+      throw new ExpiredLinkException("link expired: " + shortCode);
     }
   }
 
@@ -73,6 +96,7 @@ public class ShortUrlService {
 
   // Loop on existsByShortCode guarantees uniqueness even on random collision.
   // If customCode is given, use it (409 if taken), else generate 6 random chars.
+  // Warms the cache so the first redirect is already fast.
   @Transactional
   public ShortUrlResponse create(String url, String customCode, Instant expiresAt) {
     checkUrl(url);
@@ -88,20 +112,26 @@ public class ShortUrlService {
         code = generator.generate(6);
       } while (repo.existsByShortCode(code));
     }
-    return toJson(repo.save(new ShortUrl(url, code, expiresAt)));
+    ShortUrl saved = repo.save(new ShortUrl(url, code, expiresAt));
+    cache().put(code, new CachedLink(
+        saved.getId(), saved.getUrl(),
+        saved.getCreatedAt(), saved.getUpdatedAt(), saved.getExpiresAt()));
+    return toJson(saved);
   }
 
-  // Increment ONLY on real reads, so stats count actual visits.
-  @Transactional
+  // Hot path: served from cache when possible, counting fires in the
+  // background so the 302 never waits on a database write.
+  @Transactional(readOnly = true)
   public ShortUrlResponse get(String shortCode) {
-    ShortUrl found = repo.findByShortCode(shortCode)
-        .orElseThrow(() -> new ResourceNotFoundException("not found: " + shortCode));
-    checkExpired(found);
-    found.setAccessCount(found.getAccessCount() + 1);
-    return toJson(found);
+    CachedLink link = linkResolver.resolve(shortCode);
+    checkExpired(link, shortCode);
+    visitCounter.countAsync(shortCode);
+    return new ShortUrlResponse(
+        link.id(), link.url(), shortCode, link.createdAt(), link.updatedAt());
   }
 
   // Bump updatedAt so clients can tell edit time from creation.
+  // Evicts the cache so the next read sees the new destination.
   @Transactional
   public ShortUrlResponse update(String shortCode, String url) {
     checkUrl(url);
@@ -110,6 +140,7 @@ public class ShortUrlService {
     checkExpired(found);
     found.setUrl(url);
     found.setUpdatedAt(Instant.now());
+    cache().evict(shortCode);
     return toJson(found);
   }
 
@@ -118,9 +149,11 @@ public class ShortUrlService {
     ShortUrl found = repo.findByShortCode(shortCode)
         .orElseThrow(() -> new ResourceNotFoundException("not found: " + shortCode));
     repo.delete(found);
+    cache().evict(shortCode);
   }
 
   // readOnly + no increment so viewing stats never inflates the count.
+  // Reads the DB directly: the one place that always shows the true number.
   @Transactional(readOnly = true)
   public ShortUrlStatsResponse stats(String shortCode) {
     ShortUrl found = repo.findByShortCode(shortCode)

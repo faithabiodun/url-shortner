@@ -1,6 +1,6 @@
 // UI logic: talks to the same API the Postman collection uses.
-// apiBase defaults to this same server, override it when the page
-// runs on Vercel while the backend runs elsewhere (e.g. Render).
+// The page is served by the backend itself, so the API is always
+// on this same server (window.location.origin), locally and on Render.
 const $ = (id) => document.getElementById(id);
 const urlInput = $("urlInput");
 const aliasInput = $("aliasInput");
@@ -10,24 +10,10 @@ const errorBox = $("error");
 const resultBox = $("result");
 const shortLink = $("shortLink");
 const visits = $("visits");
-const apiBaseInput = $("apiBaseInput");
 
 function getApiBase() {
-  const saved = localStorage.getItem("apiBase");
-  if (saved) return saved.replace(/\/$/, "");
   return window.location.origin;
 }
-
-apiBaseInput.value = localStorage.getItem("apiBase") || "";
-
-$("saveApiBtn").addEventListener("click", () => {
-  const v = apiBaseInput.value.trim().replace(/\/$/, "");
-  if (v) localStorage.setItem("apiBase", v);
-  else localStorage.removeItem("apiBase");
-  showError("");
-  visits.textContent = "API base: " + getApiBase();
-  setTimeout(() => { if (!resultBox.hidden) refreshStats(); }, 0);
-});
 
 function showError(msg) {
   errorBox.hidden = !msg;

@@ -38,20 +38,64 @@ class ShortUrlApiTest {
     return node.get("shortCode").asText();
   }
 
+  // Counting is async: poll stats until the background +1 lands (max ~3s).
+  private long awaitVisits(String code) throws Exception {
+    for (int i = 0; i < 60; i++) {
+      String stats = mvc.perform(get("/shorten/" + code + "/stats"))
+          .andExpect(status().isOk())
+          .andReturn().getResponse().getContentAsString();
+      long n = json.readTree(stats).get("accessCount").asLong();
+      if (n >= 1) {
+        return n;
+      }
+      Thread.sleep(50);
+    }
+    return -1;
+  }
+
   @Test
   void createRedirectAndStats() throws Exception {
     String code = create("{\"url\":\"https://www.example.com/\"}");
 
-    // Public redirect: 302 + Location, counts +1
+    // Public redirect: 302 + Location, counting happens in the background
     mvc.perform(get("/" + code))
         .andExpect(status().isFound())
         .andExpect(header().string("Location", "https://www.example.com/"));
 
-    // Stats reflects 1 visit, viewing stats does not add more
-    String stats = mvc.perform(get("/shorten/" + code + "/stats"))
-        .andExpect(status().isOk())
-        .andReturn().getResponse().getContentAsString();
-    assertThat(json.readTree(stats).get("accessCount").asLong()).isEqualTo(1);
+    // Stats eventually reflects the visit; viewing stats adds no more
+    assertThat(awaitVisits(code)).isEqualTo(1);
+  }
+
+  @Test
+  void redirectIsCached() throws Exception {
+    String code = create("{\"url\":\"https://example.com/before\"}");
+    mvc.perform(get("/" + code)).andExpect(status().isFound());
+
+    // Change the DB row behind the cache's back (no eviction involved).
+    ShortUrl row = repo.findByShortCode(code).orElseThrow();
+    row.setUrl("https://example.com/changed-directly");
+    repo.save(row);
+
+    // Still serves the cached destination: this repeat visit did no DB read.
+    mvc.perform(get("/" + code))
+        .andExpect(status().isFound())
+        .andExpect(header().string("Location", "https://example.com/before"));
+  }
+
+  @Test
+  void updateEvictsCache() throws Exception {
+    String code = create("{\"url\":\"https://example.com/old\"}");
+    mvc.perform(get("/" + code)).andExpect(status().isFound());
+
+    mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/shorten/" + code)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"url\":\"https://example.com/new\"}"))
+        .andExpect(status().isOk());
+
+    // PUT evicted the entry, so the redirect serves the fresh destination.
+    mvc.perform(get("/" + code))
+        .andExpect(status().isFound())
+        .andExpect(header().string("Location", "https://example.com/new"));
   }
 
   @Test

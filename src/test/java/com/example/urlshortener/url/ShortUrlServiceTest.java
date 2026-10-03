@@ -1,8 +1,9 @@
 package com.example.urlshortener.url;
 
-// I test my service rules without Postgres: I mock only my repository interface
-// (mocking classes breaks on very new JDKs), and I use my real generator
-// or a tiny fake when I need fixed codes
+// Service rules without Postgres: only the repository interface is mocked.
+// Everything else is real: generator, link resolver, background counter
+// (its @Async is inert without Spring, so it runs inline) and a real
+// in-memory cache manager. Mocking concrete classes breaks on very new JDKs.
 import com.example.urlshortener.exception.InvalidUrlException;
 import com.example.urlshortener.exception.ResourceNotFoundException;
 import com.example.urlshortener.url.dto.ShortUrlResponse;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.ArrayDeque;
@@ -18,6 +20,7 @@ import java.util.ArrayDeque;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,13 +31,18 @@ class ShortUrlServiceTest {
   ShortUrlService service;
   ShortCodeGenerator realGenerator = new ShortCodeGenerator();
 
-  @BeforeEach
-  void setup() {
-    // reason: real generator so I avoid mocking a concrete class
-    service = new ShortUrlService(repo, realGenerator);
+  private ShortUrlService build(ShortCodeGenerator generator) {
+    return new ShortUrlService(repo, generator,
+        new LinkResolver(repo), new VisitCounter(repo),
+        new ConcurrentMapCacheManager("redirects"));
   }
 
-  // reason: tiny fake that returns my fixed codes in order, so I prove my retry loop
+  @BeforeEach
+  void setup() {
+    service = build(realGenerator);
+  }
+
+  // Tiny fake that returns fixed codes in order, proving the retry loop.
   static class FixedGenerator extends ShortCodeGenerator {
     private final Queue<String> codes;
     FixedGenerator(String... values) { codes = new ArrayDeque<>(java.util.List.of(values)); }
@@ -43,13 +51,13 @@ class ShortUrlServiceTest {
 
   @Test
   void createGeneratesUniqueCodeAndSaves() {
-    // reason: first code collides so I prove my do/while retry works
-    service = new ShortUrlService(repo, new FixedGenerator("abc123", "xyz789"));
+    // First code collides so the do/while retry is proven.
+    ShortUrlService retrying = build(new FixedGenerator("abc123", "xyz789"));
     when(repo.existsByShortCode("abc123")).thenReturn(true);
     when(repo.existsByShortCode("xyz789")).thenReturn(false);
     when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
 
-    ShortUrlResponse out = service.create("https://example.com/long");
+    ShortUrlResponse out = retrying.create("https://example.com/long");
 
     assertThat(out.shortCode()).isEqualTo("xyz789");
     assertThat(out.url()).isEqualTo("https://example.com/long");
@@ -62,13 +70,16 @@ class ShortUrlServiceTest {
   }
 
   @Test
-  void getIncrementsAccessCountOnce() {
+  void getReturnsUrlAndCountsInBackground() {
     ShortUrl saved = new ShortUrl("https://example.com/a", "abc123");
     when(repo.findByShortCode("abc123")).thenReturn(Optional.of(saved));
 
-    service.get("abc123");
+    ShortUrlResponse out = service.get("abc123");
 
-    assertThat(saved.getAccessCount()).isEqualTo(1);
+    // The 302 data comes back immediately; counting is delegated off-thread
+    // (inline here without Spring) so the response never waits on a write.
+    assertThat(out.url()).isEqualTo("https://example.com/a");
+    verify(repo).incrementAccessCount("abc123");
   }
 
   @Test
