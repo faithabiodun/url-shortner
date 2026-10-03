@@ -6,16 +6,19 @@
 ![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-blue)
 ![Docker](https://img.shields.io/badge/Docker-ready-blue)
 
-Convert a long URL to a short code, redirect with `302`, and track visits. Built with Java 17, Spring Boot, PostgreSQL, Docker.
+Turn long URLs into short links. Open `http://localhost:8080/` for the visual UI, or use the JSON API directly. Built with Java 17, Spring Boot, PostgreSQL, Docker.
 
 ## Features
 
-- `POST /shorten` → create 6-char code (`abc123`)
-- `GET /{code}` → `302` redirect to original URL (counts +1 visit)
+- Web UI at `/` — paste a link, optional custom alias + expiry, copy/open result, live visit count
+- `POST /shorten` → random 6-char code, or your own alias (`customCode`), optional `expiresAt`
+- `GET /{code}` → `302` redirect to the original URL (visit counted in the background)
 - `GET /shorten/{code}` → JSON lookup (counts +1)
-- `GET /shorten/{code}/stats` → visit count (no increment)
-- `PUT /shorten/{code}` → update destination, `DELETE` → remove
-- Validation → `400`, missing code → `404` JSON via `GlobalExceptionHandler`
+- `GET /shorten/{code}/stats` → visit count (never increments)
+- `PUT /shorten/{code}` → change destination, `DELETE /shorten/{code}` → remove
+- Fast under load: Caffeine cache serves repeat redirects without DB reads, counting is async so the `302` never waits on a write
+- Clean errors as JSON: bad URL → `400`, taken alias → `409`, expired link → `410`, missing code → `404`
+- Swagger UI at `/swagger-ui.html`, health at `/actuator/health`
 
 ## Run it (easiest — Docker, no Java/Postgres install needed)
 
@@ -23,16 +26,19 @@ Convert a long URL to a short code, redirect with `302`, and track visits. Built
 docker compose up --build
 ```
 
-Test in another terminal:
+Open `http://localhost:8080/` in the browser, or test the API in another terminal:
 
 ```powershell
-# 1. create
+# 1. create (random code)
 curl.exe -X POST http://localhost:8080/shorten -H "Content-Type: application/json" -d '{"url":"https://www.example.com/"}'
 
-# 2. redirect (see 302 + Location header)
+# 2. create with custom alias + 7-day expiry
+curl.exe -X POST http://localhost:8080/shorten -H "Content-Type: application/json" -d '{"url":"https://spring.io/","customCode":"my-link1","expiresAt":"2026-12-31T23:59:59Z"}'
+
+# 3. redirect (see 302 + Location header)
 curl.exe -v http://localhost:8080/PASTE_CODE_HERE
 
-# 3. stats
+# 4. stats (waits a moment — counting is async)
 curl.exe http://localhost:8080/shorten/PASTE_CODE_HERE/stats
 ```
 
@@ -49,22 +55,23 @@ docker compose logs -f    # watch app logs
 1. Create Postgres DB `urlshortener` with user `urluser` / password `urlpass`.
 2. Open `pom.xml` in IntelliJ as a project, wait for Maven import.
 3. Run `UrlShortenerApplication.java`.
-4. Test `POST http://localhost:8080/shorten`.
+4. Open `http://localhost:8080/` or test `POST http://localhost:8080/shorten`.
 
 ## API
 
 | Method | URL | Body | Success |
 |---|---|---|---|
-| POST | `/shorten` | `{"url":"https://..."}` | 201 + `shortCode` |
-| GET | `/{code}` | — | 302 redirect to `url` (visit counted +1) |
-| GET | `/shorten/{code}` | — | 200 (visit counted +1) |
+| POST | `/shorten` | `{"url":"https://...","customCode?":"my-link1","expiresAt?":"2026-12-31T23:59:59Z"}` | 201 + `shortCode` |
+| GET | `/{code}` | — | 302 redirect to `url` (counted in background) |
+| GET | `/shorten/{code}` | — | 200 (counted in background) |
 | PUT | `/shorten/{code}` | `{"url":"https://..."}` | 200 |
-| GET | `/shorten/{code}/stats` | — | 200 + `accessCount` (not counted) |
+| GET | `/shorten/{code}/stats` | — | 200 + `accessCount` (never counted) |
 | DELETE | `/shorten/{code}` | — | 204 |
 
-Bad URL → 400, missing code → 404. Postman collection: `postman_collection.json` (turn OFF `Automatically follow redirects` to see the 302).
+`customCode`: 4–20 chars, letters/numbers/`_`/`-`. Taken → `409`. Past `expiresAt` → `410 Gone`.
+Bad URL → `400`, missing code → `404`. Postman collection: `postman_collection.json` (turn OFF `Automatically follow redirects` to see the 302).
 
-Example create → redirect:
+Example:
 
 ```json
 // POST /shorten
@@ -79,9 +86,13 @@ Example create → redirect:
 ```
 Browser GET /{code}
   → RedirectController (302 + Location header)
-  → ShortUrlService.get() (rules + accessCount++)
-  → ShortUrlRepository.findByShortCode()
+  → ShortUrlService.get()
+      → LinkResolver.resolve() (Caffeine cache, DB only on miss)
+      → VisitCounter.countAsync() (atomic UPDATE on a background thread)
   → Postgres (short_urls table)
+
+UI GET /
+  → web/HomeController → static/index.html + app.js (calls the API above)
 
 API POST/PUT/DELETE /shorten/...
   → ShortUrlController (/shorten)
@@ -90,12 +101,12 @@ API POST/PUT/DELETE /shorten/...
   → exceptions → GlobalExceptionHandler (clean JSON, no whitelabel page)
 ```
 
-Project layout: `url/` (`Controller`, `Service`, `Repository`, `ShortUrl`, `ShortCodeGenerator`, `dto/`), `exception/` (`GlobalExceptionHandler`, `ApiError`), `RedirectController.java` for public redirects.
+Project layout: `url/` (controllers, `Service`, `Repository`, `ShortUrl`, `ShortCodeGenerator`, `LinkResolver`, `VisitCounter`, `dto/`), `web/` (UI controller), `config/` (`OpenApiConfig`, `CacheConfig`), `exception/` (`GlobalExceptionHandler`, `ApiError`), `src/main/resources/static/` (the UI).
 
 ## Tests + CI
 
 ```powershell
-./mvnw test   # 6 tests: service unit (Mockito) + Spring context (H2)
+./mvnw test   # 14 tests: service unit (Mockito) + API integration (MockMvc + H2)
 ```
 
 GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`:
